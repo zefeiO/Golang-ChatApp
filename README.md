@@ -1,1 +1,1 @@
-# Golang-ChatApp
+# React-Go-ChatApp
