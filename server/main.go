@@ -33,7 +33,12 @@ var (
 
 func runServer(sig chan os.Signal, exit chan int) {
 	broadcast := make(chan Message)
-	session := Session{}
+	session := Session{
+		clients: make(map[*websocket.Conn]bool),
+		// history: make([]Message, 0),
+		exited: make(chan int),
+		exit: make(chan int),
+	}
 	router := mux.NewRouter()
 
 	router.HandleFunc("/join", func(w http.ResponseWriter, r *http.Request) {
@@ -54,13 +59,14 @@ func runServer(sig chan os.Signal, exit chan int) {
 	// start goroutine for broadcasting messages
 	go session.run(broadcast)
 
+	fmt.Println("Server listening on", srv.Addr)
+
 	minutes := 0
 	for { // handles gracefully exiting on signal
 		select {
 		case <-sig: // if there is an exit signal
 			session.exit <- 1
 			<-session.exited
-
 			exit <- 1
 			return
 		case <-time.After(time.Minute * 1): // log how long the server has been running

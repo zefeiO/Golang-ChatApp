@@ -27,7 +27,7 @@ body {
   }
   
   #message-input {
-    width: 100%;
+    width: 90%;
     box-sizing: border-box;
     padding: 10px;
     border: 2px solid #ccc;
@@ -38,10 +38,37 @@ body {
   #send-button {
     padding: 10px;
     border: none;
+    margin-left: 11px;
     background-color: #0084ff;
     color: #fff;
     font-size: 16px;
     cursor: pointer;
+    border: 2px solid #0084ff;
+    border-radius: 5px;
+  }
+
+  #login-title {
+    text-align: center;
+  }
+
+  #username-input {
+    width: 90%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+  }
+
+  #username-button {
+    padding: 10px;
+    margin-left: 11px;
+    border: none;
+    background-color: #0084ff;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    border: 2px solid #0084ff;
     border-radius: 5px;
   }
   

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -19,6 +20,8 @@ func (s *Session) run(broadcast chan Message) {
 	for {
 		select {
 		case msg := <-broadcast:
+			s.history = append(s.history, msg)
+
 			for client := range s.clients {
 				client.WriteJSON(msg)
 			}
@@ -64,6 +67,8 @@ func makeSocket(w http.ResponseWriter, r *http.Request, s *Session, broadcast ch
 				log.Printf("ERROR: %v", err)
 				return
 			}
+
+			fmt.Println(msg);
 
 			broadcast <- msg
 		}
