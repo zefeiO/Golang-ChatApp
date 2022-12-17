@@ -8,14 +8,6 @@ import { ProtectedRoute } from "./Components/ProtectedRoute";
 
 
 const App = () => {
-    const [socket, setSocket] = useState(null);
-
-    useEffect(() => {
-        const newSocket = new WebSocket("ws://127.0.0.1:8000/join");
-        setSocket(newSocket);
-        return () => newSocket.close();
-    }, [])
-
     return (
         <UsernameProvider>
             <Routes>
@@ -24,7 +16,7 @@ const App = () => {
                     path="/chat" 
                     element={
                         <ProtectedRoute>
-                            <ChatPage socket={socket}/> 
+                            <ChatPage /> 
                         </ProtectedRoute>
                     } 
                 />

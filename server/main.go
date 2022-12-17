@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
+	gogpt "github.com/sashabaranov/go-gpt3"
 )
 
 type Message struct {
@@ -30,6 +32,10 @@ var (
 	clients = make(map[*websocket.Conn]bool)
 )
 
+const (
+	apiKey = "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"
+)
+
 
 func runServer(sig chan os.Signal, exit chan int) {
 	broadcast := make(chan Message)
@@ -41,8 +47,13 @@ func runServer(sig chan os.Signal, exit chan int) {
 	}
 	router := mux.NewRouter()
 
+	// create gpt3 client
+	ctx := context.Background()
+	gptClient := gogpt.NewClient(apiKey)
+
 	router.HandleFunc("/join", func(w http.ResponseWriter, r *http.Request) {
-		makeSocket(w, r, &session, broadcast)
+		fmt.Println("Got connection")
+		makeSocket(w, r, &session, broadcast, gptClient, ctx)
 	})
 
 	handler := cors.AllowAll().Handler(router)
