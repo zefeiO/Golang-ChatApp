@@ -38,10 +38,10 @@ const (
 
 
 func runServer(sig chan os.Signal, exit chan int) {
-	broadcast := make(chan Message)
 	session := Session{
 		clients: make(map[*websocket.Conn]bool),
-		// history: make([]Message, 0),
+		broadcast: make(chan Message),
+		jobs: make(chan Message),
 		exited: make(chan int),
 		exit: make(chan int),
 	}
@@ -53,7 +53,7 @@ func runServer(sig chan os.Signal, exit chan int) {
 
 	router.HandleFunc("/join", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Got connection")
-		makeSocket(w, r, &session, broadcast, gptClient, ctx)
+		makeSocket(w, r, &session)
 	})
 
 	handler := cors.AllowAll().Handler(router)
@@ -68,7 +68,7 @@ func runServer(sig chan os.Signal, exit chan int) {
 	go func() { log.Fatal(srv.ListenAndServe()) }()
 
 	// start goroutine for broadcasting messages
-	go session.run(broadcast)
+	go session.run(gptClient, ctx)
 
 	fmt.Println("Server listening on", srv.Addr)
 

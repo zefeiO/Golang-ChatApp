@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -12,17 +11,29 @@ import (
 )
 
 type Session struct {
-	clients map[*websocket.Conn]bool
-	history []Message
-	exited	chan int
-	exit	chan int
+	clients 	map[*websocket.Conn]bool
+	history 	[]Message
+	broadcast 	chan Message
+	jobs    	chan Message
+	exited		chan int
+	exit		chan int
 }
 
+const (
+	nWorkers = 10
+)
 
-func (s *Session) run(broadcast chan Message) {
+func (s *Session) run(gptClient *gogpt.Client, ctx context.Context) {
+	exit := make(chan bool)
+	
+	// start session worker pool
+	for i := 0; i < nWorkers; i++ {
+		go startWorker(s.jobs, s.broadcast, gptClient, ctx, exit)
+	}
+	
 	for {
 		select {
-		case msg := <-broadcast:
+		case msg := <-s.broadcast:
 			s.history = append(s.history, msg)
 
 			for client := range s.clients {
@@ -32,6 +43,9 @@ func (s *Session) run(broadcast chan Message) {
 			for client := range s.clients {
 				client.Close()
 			}
+			for i := 0; i < nWorkers; i++ {
+				exit <- true
+			}
 			s.exited <- 1
 			return
 		}
@@ -40,10 +54,7 @@ func (s *Session) run(broadcast chan Message) {
 
 func makeSocket(w http.ResponseWriter, 
 				r *http.Request, 
-				s *Session, 
-				broadcast chan Message,
-				gptClient *gogpt.Client, 
-				ctx context.Context) {
+				s *Session) {
 		// upgrade http request to websocket
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -67,8 +78,6 @@ func makeSocket(w http.ResponseWriter,
 			}
 		}
 
-		gptChan := make(chan string)
-
 		// infinite loop for listening
 		for {
 			var msg Message
@@ -78,13 +87,23 @@ func makeSocket(w http.ResponseWriter,
 				return
 			}
 
-			fmt.Println(msg);
+			// push msg to jobs queue
+			s.jobs <- msg
+		}
+}
 
-			if strings.HasPrefix(msg.Text, "@GPT3") {
+
+func startWorker(jobs <-chan Message, broadcast chan<- Message, gptClient *gogpt.Client, ctx context.Context,
+	exit <-chan bool) {
+	gptChan := make(chan string)
+	for {
+		select {
+		case job := <-jobs:
+			if strings.HasPrefix(job.Text, "@GPT3") {
 				req := gogpt.CompletionRequest{
 					Model: "text-davinci-003",
 					MaxTokens: 1000,
-					Prompt: msg.Text[5:],
+					Prompt: job.Text[5:],
 				}
 	
 				go func() {
@@ -95,11 +114,16 @@ func makeSocket(w http.ResponseWriter,
 					}
 					gptChan <- res.Choices[0].Text
 				}()
-
-				broadcast <- msg
+	
+				broadcast <- job
 				broadcast <- Message{Username: "GPT3", Text: <-gptChan}
 			} else {
-				broadcast <- msg
+				broadcast <- job
 			}
+
+		case <-exit:
+			return
 		}
+		
+	}
 }
